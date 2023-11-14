@@ -63,7 +63,7 @@ def process_file_phase2(filename):
 
 def process_files():
     files = [f[:-5] for f in os.listdir('.') if f.endswith('.flac')]  # Get all .flac files in the current directory
-    start_volume = 61
+    start_volume = 64
 
     min_volume = start_volume
 
