@@ -15,6 +15,8 @@ def process_file_phase1(filename, min_volume):
         # Run the sox command and capture stdout in real-time
         process = subprocess.Popen(sox_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
 
+        restart_required = False  # Assume no restart is required
+
         # Read and print each line of the output
         for line in process.stdout:
             print(line, end='')
@@ -30,10 +32,7 @@ def process_file_phase1(filename, min_volume):
         # Wait for the process to finish
         process.wait()
 
-        if not restart_required:
-            break  # Exit the loop if no restart is required
-
-    return min_volume  # Return the updated volume
+    return min_volume, restart_required  # Return the updated volume and restart flag
 
 def process_file_phase2(filename):
     dsf_output_file = f"/home/atom/Dropbox/FLAX/upsampled/{filename}.dsf"
@@ -63,7 +62,7 @@ def process_file_phase2(filename):
 
 def process_files():
     files = [f[:-5] for f in os.listdir('.') if f.endswith('.flac')]  # Get all .flac files in the current directory
-    start_volume = 64
+    start_volume = 61
 
     min_volume = start_volume
 
@@ -78,7 +77,7 @@ def process_files():
 
     # Phase 2: Convert WAV to DSD with extreme settings and remove WAV files
     for filename in files:
-        process_file_phase2(filename, min_volume)
+        process_file_phase2(filename)
 
 # Start processing
 process_files()
