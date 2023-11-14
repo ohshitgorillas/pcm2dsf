@@ -5,32 +5,30 @@ import os
 def process_file_phase1(filename, min_volume):
     output_file = f"/home/atom/Dropbox/FLAX/upsampled/{filename}.wav"
     input_file = f"{filename}.flac"
-    restart_required = True
+    
+    # Upsample FLAC to WAV with volume reduction
+    print(f"Phase 1: Upsampling {filename} to .wav with a high-tap sinc filter:")
+    sox_command = f'sox -V3 "{input_file}" -b 24 -r 2822400 "{output_file}" upsample 64 sinc -22050 -n 16777216 -L -b 0 vol "{min_volume}"'
 
-    while restart_required:
-        # Upsample FLAC to WAV with volume reduction
-        print(f"Phase 1: Upsampling {filename} to .wav with a high-tap sinc filter:")
-        sox_command = f'sox -V3 "{input_file}" -b 24 -r 2822400 "{output_file}" upsample 64 sinc -22050 -n 16777216 -L -b 0 vol "{min_volume}"'
+    # Run the sox command and capture stdout in real-time
+    process = subprocess.Popen(sox_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
 
-        # Run the sox command and capture stdout in real-time
-        process = subprocess.Popen(sox_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
+    restart_required = False  # Assume no restart is required
 
-        restart_required = False  # Assume no restart is required
+    # Read and print each line of the output
+    for line in process.stdout:
+        print(line, end='')
 
-        # Read and print each line of the output
-        for line in process.stdout:
-            print(line, end='')
+        # Check for clipping in the output
+        if "clipped" in line.lower():
+            # Clipping detected, decrease volume and set restart flag
+            min_volume -= 1
+            print(f"Clipping detected in {input_file}. Decreasing volume to {min_volume}x and setting restart flag...")
+            restart_required = True
+            break
 
-            # Check for clipping in the output
-            if "clipped" in line.lower():
-                # Clipping detected, decrease volume and set restart flag
-                min_volume -= 1
-                print(f"Clipping detected in {input_file}. Decreasing volume to {min_volume}x and restarting...")
-                restart_required = True
-                break
-
-        # Wait for the process to finish
-        process.wait()
+    # Wait for the process to finish
+    process.wait()
 
     return min_volume, restart_required  # Return the updated volume and restart flag
 
@@ -62,18 +60,17 @@ def process_file_phase2(filename):
 
 def process_files():
     files = [f[:-5] for f in os.listdir('.') if f.endswith('.flac')]  # Get all .flac files in the current directory
-    start_volume = 61
+    start_volume = 64
 
     min_volume = start_volume
 
     # Phase 1: Convert all FLAC files to WAV with volume reduction
     restart_required = True
     while restart_required:
-        restart_required = False
-
         for filename in files:
-            min_volume, restart = process_file_phase1(filename, min_volume)
-            restart_required = restart_required or restart  # Update restart flag
+            min_volume, restart_required = process_file_phase1(filename, min_volume)
+            if restart_required:
+                break  # Exit the loop if restart is required
 
     # Phase 2: Convert WAV to DSD with extreme settings and remove WAV files
     for filename in files:
